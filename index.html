@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f4ee">
+  <title>Ripasso integrativo · Diritto, Economia e Scienze Umane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Torna alla home">
+        <span class="brand-mark">r.</span>
+        <span>ripasso<span class="brand-dot">.</span></span>
+      </a>
+      <div class="topbar-note"><span class="status-dot"></span> biennio · orale + scritto</div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">ESAME INTEGRATIVO · TRA UNA SETTIMANA</p>
+          <h1 id="page-title">Una risposta<br><em>alla volta.</em></h1>
+          <p class="hero-lede">Scegli cosa ripassare, prova a rispondere a voce e gira la card per confrontarti con la risposta guida.</p>
+        </div>
+        <div class="hero-stats" aria-label="Statistiche del ripasso">
+          <div class="stat-card stat-card-accent">
+            <span class="stat-label">Carte disponibili</span>
+            <strong id="total-cards">—</strong>
+            <span class="stat-hint">generate dalla teoria</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Ripassate</span>
+            <strong id="mastered-cards">0</strong>
+            <span class="stat-hint">in questa sessione</span>
+          </div>
+        </div>
+      </section>
+
+      <nav class="view-tabs" aria-label="Sezioni dell'app">
+        <button class="view-tab is-active" data-view="study">Ripasso a carte <span class="tab-count" id="study-count">—</span></button>
+        <button class="view-tab" data-view="theory">Teoria <span class="tab-count" id="theory-count">—</span></button>
+      </nav>
+
+      <section id="study-view" class="view-panel" aria-labelledby="study-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">MODALITÀ ATTIVA</p>
+            <h2 id="study-title">Costruisci la tua sessione</h2>
+          </div>
+          <button class="button button-quiet" id="new-session" type="button">↻ <span>Nuova sessione</span></button>
+        </div>
+
+        <div class="filter-strip">
+          <label class="select-field">
+            <span>Materia</span>
+            <select id="subject-filter">
+              <option value="all">Tutte le materie</option>
+              <option value="Diritto ed Economia">Diritto ed Economia</option>
+              <option value="Scienze Umane">Scienze Umane</option>
+            </select>
+          </label>
+          <label class="select-field">
+            <span>Anno</span>
+            <select id="year-filter">
+              <option value="all">Primo + secondo</option>
+              <option value="1">Primo anno</option>
+              <option value="2">Secondo anno</option>
+            </select>
+          </label>
+          <label class="search-field">
+            <span class="sr-only">Cerca macrocategorie</span>
+            <input id="category-search" type="search" placeholder="Cerca argomento…" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="study-layout">
+          <aside class="topic-sidebar" aria-label="Selezione macrocategorie">
+            <div class="sidebar-heading">
+              <div>
+                <p class="eyebrow">COSA RIPASSARE</p>
+                <h3>Macrocategorie</h3>
+              </div>
+              <button class="text-button" id="toggle-all-topics" type="button">Tutte</button>
+            </div>
+            <p class="sidebar-help">Scegli uno o più argomenti. Le carte verranno mescolate.</p>
+            <div id="category-list" class="category-list" aria-live="polite">
+              <div class="loading-line"><span></span><span></span><span></span></div>
+            </div>
+          </aside>
+
+          <article class="practice-area">
+            <div class="practice-topline">
+              <div class="session-label"><span class="pulse-dot"></span><span id="session-label">Sessione di ripasso</span></div>
+              <div class="card-counter" id="card-counter">— / —</div>
+            </div>
+
+            <div id="empty-state" class="empty-state" hidden>
+              <div class="empty-icon">✦</div>
+              <h3>Nessuna carta qui, per ora.</h3>
+              <p>Seleziona almeno una macrocategoria oppure cambia i filtri per iniziare.</p>
+              <button class="button button-primary" id="reset-filters" type="button">Mostra tutti gli argomenti</button>
+            </div>
+
+            <div id="flashcard" class="flashcard" tabindex="0" role="button" aria-label="Card domanda. Clicca per mostrare la risposta." hidden>
+              <div class="card-face card-front">
+                <div class="card-kicker"><span id="card-area">MATERIA</span><span class="card-year" id="card-year">1° ANNO</span></div>
+                <div class="card-question-wrap">
+                  <span class="question-mark">?</span>
+                  <h3 id="card-question">Caricamento…</h3>
+                </div>
+                <div class="card-bottom"><span id="card-category">Argomento</span><span class="flip-hint">Clicca per scoprire <span>↗</span></span></div>
+              </div>
+              <div class="card-face card-back" aria-hidden="true">
+                <div class="card-kicker"><span>RISPOSTA GUIDA</span><span class="answer-badge">parla prima, leggi dopo</span></div>
+                <div id="card-answer" class="answer-content"></div>
+                <div class="card-bottom"><span id="answer-category">Argomento</span><span class="flip-hint">Clicca per tornare <span>↗</span></span></div>
+              </div>
+            </div>
+
+            <div id="card-actions" class="card-actions" hidden>
+              <button class="button button-secondary" id="review-card" type="button">↺ Da ripassare</button>
+              <button class="button button-primary" id="next-card" type="button">So rispondere <span>→</span></button>
+            </div>
+            <p class="keyboard-hint">Spazio / Invio per girare la card · frecce per avanzare</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="theory-view" class="view-panel" hidden aria-labelledby="theory-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">CONSULTAZIONE</p>
+            <h2 id="theory-title">Teoria, ordinata per argomento</h2>
+          </div>
+          <div class="theory-note">I contenuti provengono dai tuoi file Markdown</div>
+        </div>
+        <div class="theory-layout">
+          <aside class="theory-nav" aria-label="Indice della teoria">
+            <label class="search-field theory-search">
+              <span class="sr-only">Cerca nella teoria</span>
+              <input id="theory-search" type="search" placeholder="Cerca nella teoria…" autocomplete="off">
+            </label>
+            <div id="theory-topic-list" class="theory-topic-list"></div>
+          </aside>
+          <article id="theory-content" class="theory-content">
+            <div class="theory-placeholder">Seleziona un argomento per iniziare.</div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Ripasso integrativo</span>
+      <span>Senza account né servizi a pagamento</span>
+    </footer>
+  </div>
+</body>
+</html>
+
