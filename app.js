@@ -16,6 +16,8 @@ const state = {
   categorySearch: "",
   theorySearch: "",
   revealed: false,
+  completed: false,
+  sessionMode: "standard",
   mastered: new Set(),
   needsReview: new Set(),
   activeTheory: null
@@ -66,7 +68,7 @@ function bindEvents() {
     renderTheoryList();
   });
   $("#toggle-all-topics").addEventListener("click", () => {
-    const available = getFilteredTopics();
+    const available = getAvailableTopics();
     const allSelected = available.length > 0 && available.every((topic) => state.selectedCategories.has(topic.id));
     available.forEach((topic) => allSelected ? state.selectedCategories.delete(topic.id) : state.selectedCategories.add(topic.id));
     refreshFilters();
@@ -79,18 +81,27 @@ function bindEvents() {
     $("#year-filter").value = "all";
     refreshFilters();
   });
-  $("#new-session").addEventListener("click", () => buildQueue(true));
-  $("#flashcard").addEventListener("click", toggleCard);
-  $("#next-card").addEventListener("click", (event) => { event.stopPropagation(); nextCard(false); });
-  $("#review-card").addEventListener("click", (event) => { event.stopPropagation(); nextCard(true); });
+  $("#new-session").addEventListener("click", startNewSession);
+  $("#flashcard").addEventListener("click", () => {
+    if (suppressCardClick) { suppressCardClick = false; return; }
+    toggleCard();
+  });
+  $("#next-card").addEventListener("click", () => rateCard("mastered"));
+  $("#review-card").addEventListener("click", () => rateCard("review"));
+  $("#previous-card").addEventListener("click", () => goToCard(-1));
+  $("#forward-card").addEventListener("click", () => goToCard(1));
+  $("#open-card-theory").addEventListener("click", openCurrentTheory);
+  $("#review-session").addEventListener("click", buildReviewQueue);
+  $("#restart-session").addEventListener("click", startNewSession);
   $("#flashcard").addEventListener("keydown", (event) => {
     if (event.key === " " || event.key === "Enter") { event.preventDefault(); toggleCard(); }
   });
   document.addEventListener("keydown", (event) => {
     if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
-    if (event.key === "ArrowRight") nextCard(false);
-    if (event.key === "ArrowLeft") nextCard(true);
+    if (event.key === "ArrowRight") goToCard(1);
+    if (event.key === "ArrowLeft") goToCard(-1);
   });
+  setupCardSwipe();
   $$(".view-tab").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
 }
 
@@ -200,43 +211,83 @@ function buildQueue(forceShuffle = false) {
   state.queue = cards;
   state.current = 0;
   state.revealed = false;
+  state.completed = false;
+  state.sessionMode = "standard";
   renderCard();
   updateStats();
 }
 
-function nextCard(markForReview) {
+function startNewSession() {
+  state.mastered.clear();
+  state.needsReview.clear();
+  buildQueue(true);
+}
+
+function rateCard(result) {
   const card = state.queue[state.current];
   if (!card) return;
-  if (markForReview) state.needsReview.add(card.id);
-  else state.mastered.add(card.id);
+  if (result === "review") {
+    state.needsReview.add(card.id);
+    state.mastered.delete(card.id);
+  } else {
+    state.mastered.add(card.id);
+    state.needsReview.delete(card.id);
+  }
   if (state.current < state.queue.length - 1) {
-    state.current += 1;
+    goToCard(1);
+  } else {
+    state.completed = true;
     state.revealed = false;
     renderCard();
-  } else {
-    state.revealed = false;
-    renderCard(true);
   }
   updateStats();
 }
 
-function renderCard(finished = false) {
+function goToCard(delta) {
+  const nextIndex = Math.max(0, Math.min(state.queue.length - 1, state.current + delta));
+  if (nextIndex === state.current) return false;
+  state.current = nextIndex;
+  state.revealed = false;
+  const flashcard = $("#flashcard");
+  flashcard.classList.remove("card-pop");
+  requestAnimationFrame(() => flashcard.classList.add("card-pop"));
+  renderCard();
+  return true;
+}
+
+function buildReviewQueue() {
+  const reviewCards = state.cards.filter((card) => state.needsReview.has(card.id));
+  if (!reviewCards.length) return;
+  state.queue = shuffle(reviewCards);
+  state.current = 0;
+  state.revealed = false;
+  state.completed = false;
+  state.sessionMode = "review";
+  renderCard();
+}
+
+function renderCard() {
   const card = state.queue[state.current];
   const flashcard = $("#flashcard");
   const empty = $("#empty-state");
   const actions = $("#card-actions");
-  if (!card || finished) {
+  const navigation = $("#deck-navigation");
+  if (!card) {
     flashcard.hidden = true;
     actions.hidden = true;
+    navigation.hidden = true;
+    $("#session-complete").hidden = true;
     empty.hidden = false;
-    empty.querySelector("h3").textContent = finished ? "Sessione completata!" : "Nessuna carta qui, per ora.";
-    empty.querySelector("p").textContent = finished ? "Hai attraversato tutte le carte selezionate. Puoi ripartire con una nuova sessione." : "Seleziona almeno una macrocategoria oppure cambia i filtri per iniziare.";
-    $("#card-counter").textContent = finished ? `${state.queue.length} / ${state.queue.length}` : "— / —";
+    empty.querySelector("h3").textContent = "Nessuna carta qui, per ora.";
+    empty.querySelector("p").textContent = "Seleziona almeno una macrocategoria oppure cambia i filtri per iniziare.";
+    $("#card-counter").textContent = "— / —";
+    $("#deck-progress-fill").style.width = "0%";
     return;
   }
   empty.hidden = true;
   flashcard.hidden = false;
   actions.hidden = false;
+  navigation.hidden = false;
   flashcard.classList.toggle("is-flipped", state.revealed);
   flashcard.querySelector(".card-back").setAttribute("aria-hidden", String(!state.revealed));
   $("#card-area").textContent = card.area.toUpperCase();
@@ -246,13 +297,93 @@ function renderCard(finished = false) {
   $("#answer-category").textContent = card.category;
   $("#card-answer").innerHTML = renderMarkdown(card.answer);
   $("#card-counter").textContent = `${state.current + 1} / ${state.queue.length}`;
-  $("#session-label").textContent = `${getFilteredTopics().length} argomenti selezionati`;
+  $("#deck-progress-fill").style.width = `${((state.current + 1) / state.queue.length) * 100}%`;
+  $("#session-label").textContent = state.sessionMode === "review"
+    ? `Ripasso mirato · ${state.queue.length} ${state.queue.length === 1 ? "carta" : "carte"}`
+    : `${getFilteredTopics().length} argomenti selezionati`;
+  $("#previous-card").disabled = state.current === 0;
+  $("#forward-card").disabled = state.current === state.queue.length - 1;
+
+  const isMastered = state.mastered.has(card.id);
+  const isReview = state.needsReview.has(card.id);
+  const status = $("#card-status");
+  status.textContent = isMastered ? "✓ La sai" : isReview ? "↺ Da rivedere" : "Non valutata";
+  status.className = `card-status ${isMastered ? "is-mastered" : isReview ? "is-review" : ""}`;
+  $("#next-card").setAttribute("aria-pressed", String(isMastered));
+  $("#review-card").setAttribute("aria-pressed", String(isReview));
+
+  const complete = $("#session-complete");
+  complete.hidden = !(state.completed && state.current === state.queue.length - 1);
+  if (!complete.hidden) {
+    const masteredCount = state.queue.filter((item) => state.mastered.has(item.id)).length;
+    const reviewCount = state.queue.filter((item) => state.needsReview.has(item.id)).length;
+    $("#complete-summary").textContent = `${masteredCount} sicure · ${reviewCount} da ripassare`;
+    $("#review-session").disabled = reviewCount === 0;
+  }
 }
 
 function toggleCard() {
   if (!state.queue[state.current]) return;
   state.revealed = !state.revealed;
   renderCard();
+}
+
+let swipeStart = null;
+let suppressCardClick = false;
+let suppressCardClickTimer = null;
+
+function suppressSwipeClick() {
+  suppressCardClick = true;
+  clearTimeout(suppressCardClickTimer);
+  suppressCardClickTimer = setTimeout(() => { suppressCardClick = false; }, 180);
+}
+
+function setupCardSwipe() {
+  const flashcard = $("#flashcard");
+  flashcard.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    swipeStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, moved: false };
+    flashcard.setPointerCapture?.(event.pointerId);
+  });
+  flashcard.addEventListener("pointermove", (event) => {
+    if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
+    const deltaX = event.clientX - swipeStart.x;
+    const deltaY = event.clientY - swipeStart.y;
+    if (Math.hypot(deltaX, deltaY) > 10) swipeStart.moved = true;
+    if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    flashcard.classList.add("is-dragging");
+    flashcard.style.setProperty("--swipe-x", `${Math.max(-90, Math.min(90, deltaX))}px`);
+  });
+  const finishSwipe = (event) => {
+    if (!swipeStart || event.pointerId !== swipeStart.pointerId) return;
+    const deltaX = event.clientX - swipeStart.x;
+    const deltaY = event.clientY - swipeStart.y;
+    const isSwipe = Math.abs(deltaX) >= 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+    const moved = swipeStart.moved;
+    swipeStart = null;
+    flashcard.classList.remove("is-dragging");
+    flashcard.style.removeProperty("--swipe-x");
+    if (isSwipe) {
+      suppressSwipeClick();
+      goToCard(deltaX < 0 ? 1 : -1);
+    } else if (moved) {
+      suppressSwipeClick();
+    }
+  };
+  flashcard.addEventListener("pointerup", finishSwipe);
+  flashcard.addEventListener("pointercancel", () => {
+    swipeStart = null;
+    flashcard.classList.remove("is-dragging");
+    flashcard.style.removeProperty("--swipe-x");
+  });
+}
+
+function openCurrentTheory() {
+  const card = state.queue[state.current];
+  if (!card) return;
+  selectTheory(card.topicId);
+  switchView("theory");
+  $("#theory-view").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderCategoryList() {
@@ -270,7 +401,7 @@ function renderCategoryList() {
   list.querySelectorAll("input").forEach((input) => input.addEventListener("change", (event) => {
     const id = event.target.dataset.topicId;
     event.target.checked ? state.selectedCategories.add(id) : state.selectedCategories.delete(id);
-    buildQueue(true);
+    startNewSession();
   }));
 }
 
@@ -300,7 +431,7 @@ function selectTheory(id) {
 
 function refreshFilters() {
   renderCategoryList();
-  buildQueue(true);
+  startNewSession();
 }
 
 function resetCategorySelection() {
@@ -309,7 +440,7 @@ function resetCategorySelection() {
 
 function updateStats() {
   $("#total-cards").textContent = state.cards.length || "—";
-  $("#mastered-cards").textContent = state.mastered.size;
+  $("#mastered-cards").textContent = new Set([...state.mastered, ...state.needsReview]).size;
   $("#study-count").textContent = state.cards.length || "—";
   $("#theory-count").textContent = state.topics.length || "—";
 }

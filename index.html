@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f4ee">
+  <meta name="theme-color" content="#6254e8">
   <title>Ripasso integrativo · Diritto, Economia e Scienze Umane</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
@@ -35,9 +35,9 @@
             <span class="stat-hint">generate dalla teoria</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Ripassate</span>
+            <span class="stat-label">Valutate</span>
             <strong id="mastered-cards">0</strong>
-            <span class="stat-hint">in questa sessione</span>
+            <span class="stat-hint">sicure o da rivedere</span>
           </div>
         </div>
       </section>
@@ -97,8 +97,9 @@
           <article class="practice-area">
             <div class="practice-topline">
               <div class="session-label"><span class="pulse-dot"></span><span id="session-label">Sessione di ripasso</span></div>
-              <div class="card-counter" id="card-counter">— / —</div>
+              <div class="card-progress-meta"><span class="card-status" id="card-status">Non valutata</span><span class="card-counter" id="card-counter">— / —</span></div>
             </div>
+            <div class="deck-progress" aria-hidden="true"><span id="deck-progress-fill"></span></div>
 
             <div id="empty-state" class="empty-state" hidden>
               <div class="empty-icon">✦</div>
@@ -124,10 +125,27 @@
             </div>
 
             <div id="card-actions" class="card-actions" hidden>
-              <button class="button button-secondary" id="review-card" type="button">↺ Da ripassare</button>
-              <button class="button button-primary" id="next-card" type="button">So rispondere <span>→</span></button>
+              <button class="button button-review" id="review-card" type="button" aria-pressed="false"><span class="button-icon">↺</span> Da ripassare</button>
+              <button class="button button-primary" id="next-card" type="button" aria-pressed="false"><span class="button-icon">✓</span> So rispondere</button>
             </div>
-            <p class="keyboard-hint">Spazio / Invio per girare la card · frecce per avanzare</p>
+            <div id="deck-navigation" class="deck-navigation" hidden>
+              <button class="deck-nav-button" id="previous-card" type="button" aria-label="Carta precedente">← <span>Indietro</span></button>
+              <button class="theory-shortcut" id="open-card-theory" type="button">📖 Teoria</button>
+              <button class="deck-nav-button" id="forward-card" type="button" aria-label="Carta successiva"><span>Avanti</span> →</button>
+            </div>
+            <p class="swipe-hint">↔ Scorri per cambiare carta · tocca per girarla</p>
+
+            <div id="session-complete" class="session-complete" hidden aria-live="polite">
+              <div class="complete-trophy">★</div>
+              <div class="complete-copy">
+                <strong>Mazzo completato!</strong>
+                <span id="complete-summary">Controlla il risultato e scegli come continuare.</span>
+              </div>
+              <div class="complete-actions">
+                <button class="button button-secondary" id="review-session" type="button">Ripassa le difficili</button>
+                <button class="button button-primary" id="restart-session" type="button">Rimescola</button>
+              </div>
+            </div>
           </article>
         </div>
       </section>
