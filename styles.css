@@ -516,3 +516,71 @@ select:focus, input[type="search"]:focus { border-color: var(--blue); box-shadow
   .result-stat { padding: 11px 5px; }
   .result-actions .button { padding: 0 7px; font-size: 11px; }
 }
+
+/* Desktop layout */
+@media (min-width: 821px) {
+  .app-shell { width: min(1440px, calc(100% - 80px)); }
+
+  .topbar { height: 92px; }
+  .topbar-note { font-size: 11px; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(430px, .82fr);
+    align-items: center;
+    gap: clamp(56px, 8vw, 132px);
+    padding: 78px 0 68px;
+  }
+  .hero-copy { max-width: 650px; }
+  h1 { margin-bottom: 26px; font-size: clamp(64px, 6vw, 100px); }
+  .hero-lede { max-width: 560px; font-size: 18px; }
+  .hero-stats { min-width: 0; gap: 16px; }
+  .stat-card { flex: 1 1 0; min-width: 0; padding: 26px 24px; }
+  .stat-card strong { font-size: 44px; }
+
+  .view-tabs { width: max-content; }
+  .view-tab { flex: 0 0 auto; min-width: 190px; }
+
+  .view-panel { padding: 56px 0 86px; }
+  .section-heading { margin-bottom: 32px; }
+  .section-heading h2 { font-size: 38px; }
+
+  .filter-strip { display: grid; grid-template-columns: minmax(180px, 220px) minmax(180px, 220px) minmax(260px, 1fr); align-items: end; gap: 14px; padding: 17px; }
+  .select-field, .search-field { width: auto; flex: none; }
+  .search-field { margin-left: 0; }
+
+  .study-layout {
+    grid-template-columns: minmax(270px, 310px) minmax(0, 1fr);
+    gap: clamp(48px, 5vw, 72px);
+  }
+  .topic-sidebar { position: sticky; top: 28px; padding: 22px 18px; }
+  .category-list { max-height: calc(100vh - 290px); }
+  .sidebar-help { max-width: 245px; }
+
+  .practice-area { min-width: 0; }
+  .flashcard, .empty-state { min-height: 510px; }
+  .flashcard.is-flipped .card-back { min-height: 510px; }
+  .card-face { padding: clamp(38px, 4vw, 58px); }
+  .card-question-wrap { max-width: 860px; gap: 28px; }
+  .card-question-wrap h3 { font-size: clamp(38px, 4vw, 62px); }
+  .question-mark { width: 70px; height: 70px; font-size: 56px; }
+  .answer-content { max-width: 900px; font-size: 16px; line-height: 1.68; }
+  .card-actions { max-width: 780px; margin-right: auto; margin-left: auto; }
+  .card-actions .button { min-height: 58px; }
+  .deck-navigation { max-width: 780px; margin-right: auto; margin-left: auto; }
+  .swipe-hint { margin-top: 16px; }
+
+  .session-complete, .exam-results { max-width: 980px; margin-right: auto; margin-left: auto; }
+
+  .theory-layout { grid-template-columns: minmax(270px, 310px) minmax(0, 1fr); gap: clamp(48px, 5vw, 72px); }
+  .theory-nav { position: sticky; top: 28px; }
+  .theory-topic-list { max-height: calc(100vh - 220px); }
+  .theory-content { min-height: 680px; padding: clamp(40px, 5vw, 68px); }
+  .theory-content h2 { max-width: 850px; }
+  .theory-content p, .theory-content li { max-width: 850px; }
+
+  .mode-picker { gap: 18px; margin-bottom: 38px; }
+  .mode-card { min-height: 108px; padding: 20px 22px; }
+  .mode-card strong { font-size: 22px; }
+  .exam-setup { grid-template-columns: minmax(300px, .78fr) minmax(0, 1.22fr); gap: 52px; padding: 42px; }
+}
