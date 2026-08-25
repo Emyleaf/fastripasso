@@ -114,7 +114,7 @@ select:focus, input[type="search"]:focus { border-color: var(--green); box-shado
 .flashcard { position: relative; min-height: 410px; cursor: pointer; perspective: 1300px; }
 .card-face { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(25px, 5vw, 47px); border: 1px solid var(--green); border-radius: 18px; backface-visibility: hidden; box-shadow: var(--shadow); transition: transform .55s cubic-bezier(.2, .75, .25, 1); }
 .card-front { background: var(--green); color: var(--white); transform: rotateY(0deg); }
-.card-back { overflow: auto; background: var(--white); color: var(--ink); transform: rotateY(180deg); }
+.card-back { overflow: hidden; background: var(--white); color: var(--ink); transform: rotateY(180deg); }
 .flashcard.is-flipped .card-front { transform: rotateY(-180deg); }
 .flashcard.is-flipped .card-back { transform: rotateY(0deg); }
 .card-kicker, .card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
@@ -130,7 +130,7 @@ select:focus, input[type="search"]:focus { border-color: var(--green); box-shado
 .flip-hint { font-weight: 600; }
 .flip-hint span { color: var(--yellow); font-size: 17px; vertical-align: -2px; }
 .card-back .flip-hint span { color: var(--coral); }
-.answer-content { max-width: 760px; margin: auto 0; font-size: 15px; line-height: 1.62; }
+.answer-content { flex: 1 1 0; width: 100%; min-height: 0; max-width: 760px; margin: 22px 0; overflow-y: auto; padding-right: 7px; -webkit-overflow-scrolling: touch; font-size: 15px; line-height: 1.62; }
 .answer-content p { margin-bottom: 12px; }
 .answer-content p:last-child { margin-bottom: 0; }
 .answer-content ul { margin: 8px 0 14px; padding-left: 20px; }
@@ -148,6 +148,9 @@ select:focus, input[type="search"]:focus { border-color: var(--green); box-shado
 .theory-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 42px; align-items: start; }
 .theory-search { width: 100%; margin: 0 0 16px; }
 .theory-topic-list { max-height: 670px; overflow-y: auto; }
+.theory-group + .theory-group { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+.theory-group-title { margin: 0 12px 14px; color: var(--green); font-family: var(--serif); font-size: 20px; }
+.theory-area-title { margin: 15px 12px 5px; color: var(--coral); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .theory-topic-button { display: block; width: 100%; padding: 11px 12px; border: 0; border-left: 2px solid transparent; background: transparent; color: var(--muted); text-align: left; transition: background .15s ease, color .15s ease; }
 .theory-topic-button:hover, .theory-topic-button.is-active { border-left-color: var(--coral); background: var(--paper-deep); color: var(--ink); }
 .theory-topic-button strong { display: block; margin-bottom: 4px; font-size: 12px; line-height: 1.35; }
