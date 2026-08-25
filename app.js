@@ -134,10 +134,7 @@ function parseDocument(markdown, fileName) {
 function makeCardsForTopic(topic) {
   const cards = [];
   const blocks = topic.markdown.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
-  const firstParagraph = blocks.find((block) => !/^###\s/.test(block) && !/^-\s/.test(block));
-  if (firstParagraph) {
-    cards.push(createCard(topic, `Spiega l'argomento: ${topic.title}`, compactAnswer(topic.markdown), "topic"));
-  }
+  if (topic.markdown) cards.push(createCard(topic, topicQuestion(topic.title), topic.markdown, "topic"));
 
   const definitionPattern = /\*\*([^*]+)\*\*\s+(?:è|sono|si definisce|si definiscono|indica|indicano|rappresenta|rappresentano|consiste|consistono|significa|si distinguono)/gi;
   const seenTerms = new Set();
@@ -149,7 +146,7 @@ function makeCardsForTopic(topic) {
       const key = term.toLowerCase();
       if (!seenTerms.has(key) && term.length > 2 && term.length < 80) {
         const answer = block.replace(/^###.*\n?/, "").trim();
-        cards.push(createCard(topic, `Che cos'è ${term}?`, answer, "definition"));
+        cards.push(createCard(topic, definitionQuestion(term), answer, "definition"));
         seenTerms.add(key);
       }
     }
@@ -160,7 +157,7 @@ function makeCardsForTopic(topic) {
     const lines = part.trim().split("\n");
     const title = stripMarkdown(lines.shift().replace(/^###\s+/, "").trim());
     const answer = lines.join("\n").trim();
-    if (answer) cards.push(createCard(topic, `Spiega: ${title}`, answer, "subtopic"));
+    if (answer) cards.push(createCard(topic, topicQuestion(title), answer, "subtopic"));
   });
   return cards;
 }
@@ -272,10 +269,16 @@ function renderCategoryList() {
 function renderTheoryList() {
   const list = $("#theory-topic-list");
   const topics = state.topics.filter((topic) => !state.theorySearch || `${topic.title} ${topic.area} ${topic.subject}`.toLowerCase().includes(state.theorySearch));
-  list.innerHTML = topics.length ? topics.map((topic) => `
-    <button class="theory-topic-button ${topic.id === state.activeTheory ? "is-active" : ""}" data-theory-id="${topic.id}" type="button">
-      <strong>${escapeHtml(topic.title)}</strong><span>${escapeHtml(topic.area)} · ${topic.year}° anno</span>
-    </button>`).join("") : `<div class="theory-empty">Nessun argomento trovato.</div>`;
+  const subjectOrder = ["Diritto ed Economia", "Scienze Umane"];
+  const subjects = subjectOrder.map((subject) => ({ subject, topics: topics.filter((topic) => topic.subject === subject) })).filter((group) => group.topics.length);
+  list.innerHTML = subjects.length ? subjects.map((group) => {
+    const areas = [...new Set(group.topics.map((topic) => topic.area))];
+    return `<section class="theory-group"><h4 class="theory-group-title">${escapeHtml(group.subject)}</h4>${areas.map((area) => `
+      <div class="theory-area-group"><h5 class="theory-area-title">${escapeHtml(area)}</h5>${group.topics.filter((topic) => topic.area === area).map((topic) => `
+        <button class="theory-topic-button ${topic.id === state.activeTheory ? "is-active" : ""}" data-theory-id="${topic.id}" type="button">
+          <strong>${escapeHtml(topic.title)}</strong><span>${topic.year}° anno</span>
+        </button>`).join("")}</div>`).join("")}</section>`;
+  }).join("") : `<div class="theory-empty">Nessun argomento trovato.</div>`;
   list.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => selectTheory(button.dataset.theoryId)));
 }
 
@@ -342,11 +345,84 @@ function inlineMarkdown(value) {
   return safe;
 }
 
-function compactAnswer(markdown) {
-  const blocks = markdown.split(/\n\s*\n/).filter(Boolean);
-  const selected = blocks.slice(0, 3).join("\n\n");
-  return selected.length > 1150 ? `${selected.slice(0, 1147)}…` : selected;
+function topicQuestion(title) {
+  const plainTitle = stripMarkdown(title).replace(/^\d+\.\s*/, "").trim();
+  if (/^solo gli uomini parlano$/i.test(plainTitle)) return "Spiegami perché solo gli uomini parlano.";
+  return `Spiegami ${naturalTopicPhrase(title)}.`;
 }
+
+function definitionQuestion(term) {
+  const phrase = withArticle(term).replace(/\bstato\b/gi, "Stato");
+  return isPluralTerm(term) ? `Che cosa sono ${phrase}?` : `Che cos'è ${phrase}?`;
+}
+
+function naturalTopicPhrase(title) {
+  let phrase = stripMarkdown(title)
+    .replace(/^\d+\.\s*/, "")
+    .replace(/^PARTE\s+\d+\s*-\s*/i, "")
+    .replace(/\s+—\s+/g, ": ")
+    .replace(/\s+-\s+/g, ": ")
+    .trim();
+  return withArticle(phrase);
+}
+
+function withArticle(value) {
+  const phrase = stripMarkdown(value).replace(/\s+ed\s+/gi, " e ").trim();
+  if (!phrase) return phrase;
+  const colonIndex = phrase.indexOf(":");
+  if (colonIndex > 0) {
+    const head = phrase.slice(0, colonIndex).trim();
+    const tail = phrase.slice(colonIndex + 1).trim();
+    if (/^(?:che cosa|cos'è|come|quando|dove|perché|perche|chi)\b/i.test(tail)) return `${withArticle(head)}: ${lowerFirst(tail)}`;
+    if (/^(?:il|lo|la|i|gli|le|un|uno|una|l'|articolo)\b/i.test(tail)) return `${withArticle(head)}: ${lowerFirst(tail)}`;
+    if (/^[A-ZÀ-Ý][a-zà-ÿ]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+)+$/.test(tail)) return `${withArticle(head)}: ${tail}`;
+    if (/^cenni$/i.test(tail)) return `${withArticle(head)}, con alcuni cenni`;
+    return `${withArticle(head)}, ${withArticleList(tail)}`;
+  }
+  const parts = phrase.split(/\s+e\s+/i).map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1 || phrase.includes(",")) return withArticleList(phrase);
+  return withSingleArticle(phrase);
+}
+
+function withArticleList(value) {
+  return value.split(/(\s+e\s+|,\s*)/i).map((part) => {
+    if (/^\s*e\s*$/i.test(part) || /^,\s*$/.test(part)) return part;
+    return withSingleArticle(part.trim());
+  }).join("");
+}
+
+function withSingleArticle(phrase) {
+  if (/^(?:il|lo|la|i|gli|le|un|uno|una|l')\b/i.test(phrase)) return lowerFirst(phrase);
+  const firstWord = phrase.match(/^[^\s:,(]+/)?.[0] || phrase;
+  const article = articleForWord(firstWord);
+  return article === "l'" ? `l'${lowerFirst(phrase)}` : `${article} ${lowerFirst(phrase)}`;
+}
+
+function articleForWord(word) {
+  const normalized = word.toLowerCase().replace(/^[^a-zàèéìòù]+|[^a-zàèéìòù]+$/gi, "");
+  const masculine = new Set(["costo-opportunità", "sistema", "problema", "tema", "programma", "clima", "schema"]);
+  const feminine = new Set(["scarsità", "utilità", "economia", "percezione", "memoria", "intelligenza", "personalità", "comunicazione", "ricerca", "statistica", "cognizione", "influenza", "moneta", "banca", "inflazione", "deflazione", "democrazia", "magistratura", "sovranità", "costituzione", "uguaglianza", "metodologia", "psicologia", "motivazione", "emozione", "emozioni", "capacità"]);
+  const femininePlural = new Set(["forme", "norme", "fonti", "situazioni", "persone", "funzioni", "teorie", "relazioni", "scienze", "cause", "conseguenze", "variabili", "origini", "emozioni", "attribuzioni", "istanze", "scelte", "amnesie"]);
+  if (femininePlural.has(normalized)) return "le";
+  if (normalized.endsWith("i") && !["analisi", "ipotesi", "tesi", "crisi", "sintesi"].includes(normalized)) {
+    if (/^[aeiouàèéìòù]/i.test(normalized)) return "gli";
+    return /^(s[^aeiouàèéìòù]|z|gn|ps|x|y)/i.test(normalized) ? "gli" : "i";
+  }
+  if (/^[aeiouàèéìòù]/i.test(normalized)) return "l'";
+  if (masculine.has(normalized)) return "il";
+  if (feminine.has(normalized) || /(?:a|zione|sione|tà|enza|anza|ezza|ura|ità)$/.test(normalized)) return "la";
+  if (/^(s[^aeiouàèéìòù]|z|gn|ps|x|y)/i.test(normalized)) return "lo";
+  return "il";
+}
+
+function isPluralTerm(term) {
+  const firstWord = stripMarkdown(term).trim().match(/^[^\s:,(]+/)?.[0] || term;
+  const normalized = firstWord.toLowerCase().replace(/[^a-zàèéìòù]/gi, "");
+  return new Set(["forme", "norme", "fonti", "situazioni", "persone", "funzioni", "teorie", "relazioni", "scienze", "cause", "conseguenze", "variabili", "origini", "emozioni", "attribuzioni", "istanze", "scelte", "amnesie"]).has(normalized)
+    || (normalized.endsWith("i") && !["analisi", "ipotesi", "tesi", "crisi", "sintesi"].includes(normalized));
+}
+
+function lowerFirst(value) { return value.charAt(0).toLowerCase() + value.slice(1); }
 
 function stripMarkdown(value) { return value.replace(/[*_`]/g, "").trim(); }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
