@@ -17,8 +17,13 @@ const state = {
   theorySearch: "",
   revealed: false,
   completed: false,
+  studyMode: "free",
   sessionMode: "standard",
+  examActive: false,
+  examSubject: "Diritto ed Economia",
+  examLength: 10,
   mastered: new Set(),
+  partial: new Set(),
   needsReview: new Set(),
   activeTheory: null
 };
@@ -43,6 +48,7 @@ async function init() {
     buildQueue();
     renderTheoryList();
     if (state.topics[0]) selectTheory(state.topics[0].id);
+    updateModeUI();
   } catch (error) {
     showLoadingError(error);
   }
@@ -87,12 +93,17 @@ function bindEvents() {
     toggleCard();
   });
   $("#next-card").addEventListener("click", () => rateCard("mastered"));
+  $("#partial-card").addEventListener("click", () => rateCard("partial"));
   $("#review-card").addEventListener("click", () => rateCard("review"));
   $("#previous-card").addEventListener("click", () => goToCard(-1));
   $("#forward-card").addEventListener("click", () => goToCard(1));
   $("#open-card-theory").addEventListener("click", openCurrentTheory);
   $("#review-session").addEventListener("click", buildReviewQueue);
   $("#restart-session").addEventListener("click", startNewSession);
+  $("#start-exam").addEventListener("click", startExam);
+  $("#review-exam").addEventListener("click", reviewExamMistakes);
+  $("#new-exam").addEventListener("click", resetExamSetup);
+  $$("[data-study-mode]").forEach((button) => button.addEventListener("click", () => switchStudyMode(button.dataset.studyMode)));
   $("#flashcard").addEventListener("keydown", (event) => {
     if (event.key === " " || event.key === "Enter") { event.preventDefault(); toggleCard(); }
   });
@@ -219,6 +230,7 @@ function buildQueue(forceShuffle = false) {
 
 function startNewSession() {
   state.mastered.clear();
+  state.partial.clear();
   state.needsReview.clear();
   buildQueue(true);
 }
@@ -226,14 +238,33 @@ function startNewSession() {
 function rateCard(result) {
   const card = state.queue[state.current];
   if (!card) return;
+  if (state.studyMode === "exam" && !state.revealed) return;
   if (result === "review") {
     state.needsReview.add(card.id);
     state.mastered.delete(card.id);
+    state.partial.delete(card.id);
+  } else if (result === "partial") {
+    state.partial.add(card.id);
+    state.mastered.delete(card.id);
+    state.needsReview.delete(card.id);
   } else {
     state.mastered.add(card.id);
+    state.partial.delete(card.id);
     state.needsReview.delete(card.id);
   }
-  if (state.current < state.queue.length - 1) {
+  if (state.studyMode === "exam") {
+    const unratedAfter = state.queue.findIndex((item, index) => index > state.current && !getCardResult(item.id));
+    const nextUnrated = unratedAfter >= 0 ? unratedAfter : state.queue.findIndex((item) => !getCardResult(item.id));
+    if (nextUnrated >= 0) {
+      state.current = nextUnrated;
+      state.revealed = false;
+      renderCard();
+    } else {
+      state.completed = true;
+      state.revealed = false;
+      renderCard();
+    }
+  } else if (state.current < state.queue.length - 1) {
     goToCard(1);
   } else {
     state.completed = true;
@@ -241,6 +272,13 @@ function rateCard(result) {
     renderCard();
   }
   updateStats();
+}
+
+function getCardResult(cardId) {
+  if (state.mastered.has(cardId)) return "mastered";
+  if (state.partial.has(cardId)) return "partial";
+  if (state.needsReview.has(cardId)) return "review";
+  return null;
 }
 
 function goToCard(delta) {
@@ -266,6 +304,116 @@ function buildReviewQueue() {
   renderCard();
 }
 
+function switchStudyMode(mode) {
+  if (!['free', 'exam'].includes(mode) || state.studyMode === mode) return;
+  state.studyMode = mode;
+  state.examActive = false;
+  state.completed = false;
+  state.mastered.clear();
+  state.partial.clear();
+  state.needsReview.clear();
+  if (mode === "free") buildQueue(true);
+  else state.queue = [];
+  updateModeUI();
+  updateStats();
+}
+
+function updateModeUI() {
+  $$("[data-study-mode]").forEach((button) => {
+    const active = button.dataset.studyMode === state.studyMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const isExam = state.studyMode === "exam";
+  $("#exam-setup").hidden = !isExam || state.examActive;
+  $("#free-heading").hidden = isExam;
+  $("#free-filters").hidden = isExam;
+  $("#free-topics").hidden = isExam;
+  $(".practice-area").hidden = isExam && !state.examActive;
+  $("#partial-card").hidden = !isExam;
+  $("#card-actions").classList.toggle("is-exam", isExam);
+  $("#review-card").innerHTML = isExam
+    ? '<span class="button-icon">✕</span> Non la so'
+    : '<span class="button-icon">↺</span> Da ripassare';
+  $("#next-card").innerHTML = isExam
+    ? '<span class="button-icon">✓</span> La so'
+    : '<span class="button-icon">✓</span> So rispondere';
+  $(".swipe-hint").textContent = isExam
+    ? "↔ Puoi rivedere le carte · girala prima di valutarti"
+    : "↔ Scorri per cambiare carta · tocca per girarla";
+}
+
+function startExam() {
+  state.examSubject = $('input[name="exam-subject"]:checked').value;
+  state.examLength = Number($('input[name="exam-length"]:checked').value);
+  state.mastered.clear();
+  state.partial.clear();
+  state.needsReview.clear();
+  state.queue = buildBalancedExam(state.examSubject, state.examLength);
+  state.current = 0;
+  state.revealed = false;
+  state.completed = false;
+  state.examActive = true;
+  state.sessionMode = "exam";
+  updateModeUI();
+  renderCard();
+  updateStats();
+}
+
+function buildBalancedExam(subject, length) {
+  const topicsByYear = ["1", "2"].map((year) => shuffle(state.topics.filter((topic) => topic.subject === subject && topic.year === year)));
+  const orderedTopics = [];
+  const maxTopics = Math.max(...topicsByYear.map((topics) => topics.length));
+  for (let index = 0; index < maxTopics; index += 1) {
+    topicsByYear.forEach((topics) => { if (topics[index]) orderedTopics.push(topics[index]); });
+  }
+  const cardsByTopic = new Map(orderedTopics.map((topic) => [topic.id, shuffle(state.cards.filter((card) => card.topicId === topic.id))]));
+  const selected = [];
+  let round = 0;
+  while (selected.length < length) {
+    let added = false;
+    orderedTopics.forEach((topic) => {
+      const card = cardsByTopic.get(topic.id)[round];
+      if (card && selected.length < length) { selected.push(card); added = true; }
+    });
+    if (!added) break;
+    round += 1;
+  }
+  return selected;
+}
+
+function resetExamSetup() {
+  state.examActive = false;
+  state.completed = false;
+  state.queue = [];
+  state.mastered.clear();
+  state.partial.clear();
+  state.needsReview.clear();
+  $("#exam-results").hidden = true;
+  updateModeUI();
+  updateStats();
+}
+
+function reviewExamMistakes() {
+  const weakIds = new Set([...state.needsReview, ...state.partial]);
+  const weakCards = state.queue.filter((card) => weakIds.has(card.id));
+  if (!weakCards.length) return;
+  state.studyMode = "free";
+  state.examActive = false;
+  state.sessionMode = "review";
+  state.queue = shuffle(weakCards);
+  state.current = 0;
+  state.revealed = false;
+  state.completed = false;
+  state.mastered.clear();
+  state.partial.clear();
+  state.needsReview = new Set(weakIds);
+  $("#exam-results").hidden = true;
+  updateModeUI();
+  renderCard();
+  updateStats();
+}
+
 function renderCard() {
   const card = state.queue[state.current];
   const flashcard = $("#flashcard");
@@ -277,6 +425,7 @@ function renderCard() {
     actions.hidden = true;
     navigation.hidden = true;
     $("#session-complete").hidden = true;
+    $("#exam-results").hidden = true;
     empty.hidden = false;
     empty.querySelector("h3").textContent = "Nessuna carta qui, per ora.";
     empty.querySelector("p").textContent = "Seleziona almeno una macrocategoria oppure cambia i filtri per iniziare.";
@@ -298,28 +447,75 @@ function renderCard() {
   $("#card-answer").innerHTML = renderMarkdown(card.answer);
   $("#card-counter").textContent = `${state.current + 1} / ${state.queue.length}`;
   $("#deck-progress-fill").style.width = `${((state.current + 1) / state.queue.length) * 100}%`;
-  $("#session-label").textContent = state.sessionMode === "review"
-    ? `Ripasso mirato · ${state.queue.length} ${state.queue.length === 1 ? "carta" : "carte"}`
-    : `${getFilteredTopics().length} argomenti selezionati`;
+  $("#session-label").textContent = state.sessionMode === "exam"
+    ? `Simulazione · ${state.examLength} domande`
+    : state.sessionMode === "review"
+      ? `Ripasso mirato · ${state.queue.length} ${state.queue.length === 1 ? "carta" : "carte"}`
+      : `${getFilteredTopics().length} argomenti selezionati`;
   $("#previous-card").disabled = state.current === 0;
   $("#forward-card").disabled = state.current === state.queue.length - 1;
 
   const isMastered = state.mastered.has(card.id);
+  const isPartial = state.partial.has(card.id);
   const isReview = state.needsReview.has(card.id);
   const status = $("#card-status");
-  status.textContent = isMastered ? "✓ La sai" : isReview ? "↺ Da rivedere" : "Non valutata";
-  status.className = `card-status ${isMastered ? "is-mastered" : isReview ? "is-review" : ""}`;
+  status.textContent = isMastered
+    ? "✓ La sai"
+    : isPartial
+      ? "≈ Quasi"
+      : isReview
+        ? state.studyMode === "exam" ? "✕ Non la sai" : "↺ Da rivedere"
+        : "Non valutata";
+  status.className = `card-status ${isMastered ? "is-mastered" : isPartial ? "is-partial" : isReview ? "is-review" : ""}`;
   $("#next-card").setAttribute("aria-pressed", String(isMastered));
+  $("#partial-card").setAttribute("aria-pressed", String(isPartial));
   $("#review-card").setAttribute("aria-pressed", String(isReview));
+  const evaluationLocked = state.studyMode === "exam" && !state.revealed;
+  $("#next-card").disabled = evaluationLocked;
+  $("#partial-card").disabled = evaluationLocked;
+  $("#review-card").disabled = evaluationLocked;
 
   const complete = $("#session-complete");
-  complete.hidden = !(state.completed && state.current === state.queue.length - 1);
+  complete.hidden = state.studyMode === "exam" || !(state.completed && state.current === state.queue.length - 1);
   if (!complete.hidden) {
     const masteredCount = state.queue.filter((item) => state.mastered.has(item.id)).length;
     const reviewCount = state.queue.filter((item) => state.needsReview.has(item.id)).length;
     $("#complete-summary").textContent = `${masteredCount} sicure · ${reviewCount} da ripassare`;
     $("#review-session").disabled = reviewCount === 0;
   }
+  const examResults = $("#exam-results");
+  examResults.hidden = state.studyMode !== "exam" || !state.completed;
+  if (!examResults.hidden) renderExamResults();
+}
+
+function renderExamResults() {
+  const total = state.queue.length;
+  const masteredCount = state.queue.filter((card) => state.mastered.has(card.id)).length;
+  const partialCount = state.queue.filter((card) => state.partial.has(card.id)).length;
+  const reviewCount = state.queue.filter((card) => state.needsReview.has(card.id)).length;
+  const points = masteredCount + partialCount * .5;
+  const percentage = total ? Math.round((points / total) * 100) : 0;
+  const grade = total ? (points / total) * 10 : 0;
+  $("#result-grade").textContent = grade.toFixed(1).replace(".", ",");
+  $("#result-percentage").textContent = `${percentage}%`;
+  $("#result-score-fill").style.width = `${percentage}%`;
+  $("#result-mastered").textContent = masteredCount;
+  $("#result-partial").textContent = partialCount;
+  $("#result-review").textContent = reviewCount;
+  $("#result-message").textContent = grade >= 8 ? "Ottima preparazione!" : grade >= 6 ? "Buona base, continua così!" : "C'è ancora spazio per migliorare";
+
+  const weakScores = new Map();
+  state.queue.forEach((card) => {
+    const weight = state.needsReview.has(card.id) ? 2 : state.partial.has(card.id) ? 1 : 0;
+    if (weight) weakScores.set(card.topicId, (weakScores.get(card.topicId) || 0) + weight);
+  });
+  const weakTopics = [...weakScores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([topicId]) => state.topics.find((topic) => topic.id === topicId)?.title)
+    .filter(Boolean);
+  $("#result-weak-areas").textContent = weakTopics.length ? weakTopics.join(" · ") : "Nessuna area debole rilevata.";
+  $("#review-exam").disabled = reviewCount + partialCount === 0;
 }
 
 function toggleCard() {
@@ -440,7 +636,7 @@ function resetCategorySelection() {
 
 function updateStats() {
   $("#total-cards").textContent = state.cards.length || "—";
-  $("#mastered-cards").textContent = new Set([...state.mastered, ...state.needsReview]).size;
+  $("#mastered-cards").textContent = new Set([...state.mastered, ...state.partial, ...state.needsReview]).size;
   $("#study-count").textContent = state.cards.length || "—";
   $("#theory-count").textContent = state.topics.length || "—";
 }

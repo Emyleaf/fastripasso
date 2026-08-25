@@ -48,7 +48,39 @@
       </nav>
 
       <section id="study-view" class="view-panel" aria-labelledby="study-title">
-        <div class="section-heading">
+        <div class="mode-picker" aria-label="Modalità di ripasso">
+          <button class="mode-card is-active" type="button" data-study-mode="free" aria-pressed="true">
+            <span class="mode-icon">♾</span>
+            <span><strong>Allenamento libero</strong><small>Tutte le carte, senza voto</small></span>
+          </button>
+          <button class="mode-card" type="button" data-study-mode="exam" aria-pressed="false">
+            <span class="mode-icon mode-icon-exam">★</span>
+            <span><strong>Simulazione</strong><small>10 o 20 domande con valutazione</small></span>
+          </button>
+        </div>
+
+        <div id="exam-setup" class="exam-setup" hidden>
+          <div class="exam-setup-copy">
+            <p class="eyebrow">PREPARA IL COMPITO</p>
+            <h2>Quanto sei pronto?</h2>
+            <p>Le domande vengono distribuite tra anni e argomenti, evitando una selezione casuale sbilanciata.</p>
+          </div>
+          <div class="exam-options">
+            <fieldset>
+              <legend>Materia</legend>
+              <label class="choice-chip"><input type="radio" name="exam-subject" value="Diritto ed Economia" checked><span>⚖️ Diritto ed Economia</span></label>
+              <label class="choice-chip"><input type="radio" name="exam-subject" value="Scienze Umane"><span>🧠 Scienze Umane</span></label>
+            </fieldset>
+            <fieldset>
+              <legend>Durata</legend>
+              <label class="choice-chip"><input type="radio" name="exam-length" value="10" checked><span><strong>10</strong> Rapida</span></label>
+              <label class="choice-chip"><input type="radio" name="exam-length" value="20"><span><strong>20</strong> Standard</span></label>
+            </fieldset>
+            <button class="button button-primary exam-start" id="start-exam" type="button">Inizia la simulazione <span>→</span></button>
+          </div>
+        </div>
+
+        <div class="section-heading" id="free-heading">
           <div>
             <p class="eyebrow">MODALITÀ ATTIVA</p>
             <h2 id="study-title">Costruisci la tua sessione</h2>
@@ -56,7 +88,7 @@
           <button class="button button-quiet" id="new-session" type="button">↻ <span>Nuova sessione</span></button>
         </div>
 
-        <div class="filter-strip">
+        <div class="filter-strip" id="free-filters">
           <label class="select-field">
             <span>Materia</span>
             <select id="subject-filter">
@@ -80,7 +112,7 @@
         </div>
 
         <div class="study-layout">
-          <aside class="topic-sidebar" aria-label="Selezione macrocategorie">
+          <aside class="topic-sidebar" id="free-topics" aria-label="Selezione macrocategorie">
             <div class="sidebar-heading">
               <div>
                 <p class="eyebrow">COSA RIPASSARE</p>
@@ -126,6 +158,7 @@
 
             <div id="card-actions" class="card-actions" hidden>
               <button class="button button-review" id="review-card" type="button" aria-pressed="false"><span class="button-icon">↺</span> Da ripassare</button>
+              <button class="button button-partial" id="partial-card" type="button" aria-pressed="false" hidden><span class="button-icon">≈</span> Quasi</button>
               <button class="button button-primary" id="next-card" type="button" aria-pressed="false"><span class="button-icon">✓</span> So rispondere</button>
             </div>
             <div id="deck-navigation" class="deck-navigation" hidden>
@@ -144,6 +177,26 @@
               <div class="complete-actions">
                 <button class="button button-secondary" id="review-session" type="button">Ripassa le difficili</button>
                 <button class="button button-primary" id="restart-session" type="button">Rimescola</button>
+              </div>
+            </div>
+
+            <div id="exam-results" class="exam-results" hidden aria-live="polite">
+              <div class="result-heading">
+                <div class="result-medal">★</div>
+                <div><span>SIMULAZIONE COMPLETATA</span><h3 id="result-message">Buon lavoro!</h3></div>
+                <div class="result-grade"><strong id="result-grade">—</strong><span>/ 10</span><span class="result-percentage" id="result-percentage">—%</span></div>
+              </div>
+              <div class="result-score"><span id="result-score-fill"></span></div>
+              <div class="result-stats">
+                <div class="result-stat is-correct"><strong id="result-mastered">0</strong><span>La so</span></div>
+                <div class="result-stat is-partial"><strong id="result-partial">0</strong><span>Quasi</span></div>
+                <div class="result-stat is-wrong"><strong id="result-review">0</strong><span>Non la so</span></div>
+              </div>
+              <div class="weak-areas"><strong>Da rinforzare</strong><p id="result-weak-areas">Nessuna area debole rilevata.</p></div>
+              <p class="result-note">È una stima basata sulla tua autovalutazione, non un voto ufficiale.</p>
+              <div class="result-actions">
+                <button class="button button-secondary" id="review-exam" type="button">Ripassa gli errori</button>
+                <button class="button button-primary" id="new-exam" type="button">Nuova simulazione</button>
               </div>
             </div>
           </article>
