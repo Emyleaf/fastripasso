@@ -8,7 +8,7 @@ Le principali scienze umane sono la **psicologia**, che studia il comportamento 
 
 Per secoli la mente umana venne studiata dalla filosofia. La psicologia divenne una scienza autonoma nel **1879**, quando **Wundt** fondò a Lipsia il primo laboratorio di psicologia sperimentale. Wundt utilizzava l'**introspezione**, chiedendo alle persone di descrivere le proprie esperienze mentali in condizioni controllate.
 
-Nel tempo nacquero diverse correnti. Il **comportamentismo** di Watson studia solamente il comportamento osservabile e il rapporto tra stimoli e risposte. La **Gestalt** studia la percezione e sostiene che il tutto è più della somma delle singole parti. Piaget studia lo sviluppo cognitivo del bambino. Il **cognitivismo** considera la mente come un elaboratore di informazioni e studia processi come memoria, attenzione e pensiero.
+Nel tempo nacquero diverse correnti. Il **comportamentismo** di Watson studia solamente il comportamento osservabile e il rapporto tra stimoli e risposte. La **Gestalt** studia la **percezione** e sostiene che il tutto è più della somma delle singole parti. Piaget studia lo sviluppo cognitivo del bambino. Il **cognitivismo** considera la mente come un elaboratore di informazioni e studia processi come memoria, attenzione e pensiero.
 
 Oggi la psicologia studia il comportamento e i processi mentali e comprende diverse aree, come la psicologia clinica, sociale, dello sviluppo, del lavoro, scolastica e la neuropsicologia.
 
