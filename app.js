@@ -1,7 +1,6 @@
 const THEORY_SOURCE_FILES = [
   "Riassunto finale Diritto ed Economia.md",
-  "Scienze Umane - Primo anno.md",
-  "Scienze Umane - Secondo anno.md"
+  "Riassunto finale Scienze umane.md"
 ];
 const QUESTION_SOURCE_FILE = "Domande probabili.md";
 
@@ -39,6 +38,30 @@ const PROVIDED_QUESTION_TOPICS = {
     ["l'inflazione"],
     ["il ruolo dello stato nell'economia"],
     ["i sistemi economici"]
+  ],
+  "Scienze Umane": [
+    ["scienze naturali e scienze umane"],
+    ["le origini della psicologia"],
+    ["la percezione"],
+    ["la memoria"],
+    ["il pensiero e l'intelligenza"],
+    ["i bisogni e la motivazione"],
+    ["le emozioni"],
+    ["la personalità"],
+    ["l'inconscio e le istanze della psiche"],
+    ["l'apprendimento"],
+    ["il linguaggio"],
+    ["gli atti linguistici"],
+    ["lo sviluppo e i disturbi del linguaggio"],
+    ["la comunicazione e il feedback"],
+    ["la cognizione e l'influenza sociale"],
+    ["stereotipi e pregiudizi"],
+    ["il lavoro e la rivoluzione industriale"],
+    ["taylorismo, fordismo e toyotismo"],
+    ["la psicologia del lavoro"],
+    ["la metodologia della ricerca"],
+    ["la statistica"],
+    ["gli indici di dispersione"]
   ]
 };
 
@@ -78,11 +101,7 @@ async function init() {
       fetchMarkdown(QUESTION_SOURCE_FILE)
     ]);
     state.topics = files.flatMap(({ file, text }) => parseDocument(text, file));
-    const generatedScienceCards = state.topics
-      .filter((topic) => topic.subject === "Scienze Umane")
-      .flatMap(makeCardsForTopic);
-    const providedLawEconomicsCards = makeProvidedCards(parseProvidedQuestions(questionsMarkdown), state.topics);
-    state.cards = [...providedLawEconomicsCards, ...generatedScienceCards];
+    state.cards = makeProvidedCards(parseProvidedQuestions(questionsMarkdown), state.topics);
     updateStats();
     renderCategoryList();
     buildQueue();
@@ -166,6 +185,9 @@ function parseDocument(markdown, fileName) {
   if (fileName === "Riassunto finale Diritto ed Economia.md") {
     return parseFinalLawEconomicsDocument(markdown, fileName);
   }
+  if (fileName === "Riassunto finale Scienze umane.md") {
+    return parseFinalScienceDocument(markdown, fileName);
+  }
 
   const subject = fileName.startsWith("Scienze") ? "Scienze Umane" : "Diritto ed Economia";
   const year = fileName.includes("Primo") ? "1" : "2";
@@ -200,6 +222,34 @@ function parseDocument(markdown, fileName) {
     }
     if (current) current.lines.push(line);
   });
+  return topics.map((topic) => ({ ...topic, markdown: topic.lines.join("\n").trim() }));
+}
+
+function parseFinalScienceDocument(markdown, fileName) {
+  const firstYearTopics = new Set(PROVIDED_QUESTION_TOPICS["Scienze Umane"].slice(0, 10).flat());
+  const topics = [];
+  let current = null;
+
+  markdown.replace(/\r/g, "").split("\n").forEach((line) => {
+    const heading = line.match(/^\*\*([^*]+)\*\*\s*$/);
+    if (heading) {
+      const rawTitle = stripMarkdown(heading[1]);
+      const title = sentenceCase(rawTitle);
+      current = {
+        id: slug(`${fileName}-Scienze Umane-${rawTitle}`),
+        subject: "Scienze Umane",
+        year: firstYearTopics.has(normalizeTitle(rawTitle)) ? "1" : "2",
+        area: "Scienze Umane",
+        title,
+        category: `Scienze Umane · ${title}`,
+        lines: []
+      };
+      topics.push(current);
+      return;
+    }
+    if (current && !/^---+\s*$/.test(line)) current.lines.push(line);
+  });
+
   return topics.map((topic) => ({ ...topic, markdown: topic.lines.join("\n").trim() }));
 }
 
@@ -254,17 +304,18 @@ function inferLawEconomicsYear(area, title) {
 function parseProvidedQuestions(markdown) {
   const questions = [];
   let area = null;
-  let dirittoYear = "1";
+  let sectionYear = "1";
 
   markdown.replace(/\r/g, "").split("\n").forEach((line) => {
     const section = line.match(/^###\s+(.+?)\s*$/);
     if (section) {
       const sectionName = stripMarkdown(section[1]);
-      area = ["Diritto", "Economia"].includes(sectionName) ? sectionName : null;
+      area = ["Diritto", "Economia", "Scienze Umane"].includes(sectionName) ? sectionName : null;
+      sectionYear = "1";
       return;
     }
-    if (/^---+\s*$/.test(line) && area === "Diritto") {
-      dirittoYear = "2";
+    if (/^---+\s*$/.test(line) && ["Diritto", "Scienze Umane"].includes(area)) {
+      sectionYear = "2";
       return;
     }
     const numberedQuestion = line.match(/^\s*\d+[.)]\s+(.+?)\s*$/);
@@ -273,7 +324,8 @@ function parseProvidedQuestions(markdown) {
     questions.push({
       area,
       areaIndex,
-      year: area === "Diritto" ? dirittoYear : areaIndex === 0 ? "1" : "2",
+      subject: area === "Scienze Umane" ? "Scienze Umane" : "Diritto ed Economia",
+      year: area === "Economia" ? areaIndex === 0 ? "1" : "2" : sectionYear,
       question: numberedQuestion[1]
     });
   });
@@ -282,12 +334,11 @@ function parseProvidedQuestions(markdown) {
 }
 
 function makeProvidedCards(questions, topics) {
-  const lawEconomicsTopics = topics.filter((topic) => topic.subject === "Diritto ed Economia");
   return questions.map((item) => {
     const mappedTitles = PROVIDED_QUESTION_TOPICS[item.area]?.[item.areaIndex];
     if (!mappedTitles) throw new Error(`Manca il collegamento per la domanda: ${item.question}`);
-    const linkedTopics = mappedTitles.map((title) => lawEconomicsTopics.find((topic) =>
-      topic.area === item.area && normalizeTitle(topic.title) === normalizeTitle(title)
+    const linkedTopics = mappedTitles.map((title) => topics.find((topic) =>
+      topic.subject === item.subject && topic.area === item.area && normalizeTitle(topic.title) === normalizeTitle(title)
     ));
     if (linkedTopics.some((topic) => !topic)) throw new Error(`Manca la teoria collegata alla domanda: ${item.question}`);
     const primaryTopic = linkedTopics[0];
@@ -298,7 +349,7 @@ function makeProvidedCards(questions, topics) {
       id: `provided-${slug(`${item.area}-${item.question}`)}`,
       topicId: primaryTopic.id,
       topicIds: linkedTopics.map((topic) => topic.id),
-      subject: "Diritto ed Economia",
+      subject: item.subject,
       year: item.year,
       area: item.area,
       category: primaryTopic.category,

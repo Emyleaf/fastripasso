@@ -37,3 +37,29 @@
 7. Elenca i vari sistemi economici
 
 ### Scienze Umane
+
+1. Differenze fra scienza naturale e scienze umane? Quali sono le principali scienze umane?
+2. Come è nata la psicologia? Quali correnti principali sono esistite? Di cosa si occupa oggi?
+3. Che cos'è la percezione? Come funziona?
+4. Che cos'è la memoria? Com'è strutturata? Quali disturbi esistono?
+5. Come ragiona un umano? Che cos'è l'intelligenza?
+6. Che cos'è un bisogno? Che cos'è la motivazione?
+7. Che cosa sono le emozioni?
+8. Che cos'è la personalità?
+9. Che cos'è l'inconscio? Quali sono le istanze della psiche?
+10. Che cos'è l'apprendimento? Che cosa sono i rinforzi e le punizioni?
+
+---
+
+1. Che cos'è il linguaggio? Com'è strutturato?
+2. Che cosa sono gli atti locutori e illocutori?
+3. Come si sviluppa il linguaggio? Quali disturbi possono esserci?
+4. Che cos'è la comunicazione? Che cos'è un feedback?
+5. Come viene influenzata la cognizione sociale di una persona?
+6. Che cosa sono gli stereotipi e i pregiudizi? Sono positivi o negativi? Come nascono e come si attenuano?
+7. Che cos'è il lavoro? Quale evento ha sancito un profondo cambiamento?
+8. Che cos'è il taylorismo? Il fordismo? Il toyotismo?
+9. Come funziona la psicologia nel lavoro?
+10. Che cosa significa fare ricerca? Quali metodologie vengono utilizzate?
+11. Che cos'è la statistica? Come si organizzano i dati? Come si analizzano e interpretano?
+12. Che cos'è un indice di dispersione? A che cosa serve?
