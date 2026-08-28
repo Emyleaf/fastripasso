@@ -1,9 +1,46 @@
-const SOURCE_FILES = [
-  "Diritto ed Economia - Primo anno.md",
-  "Diritto ed Economia - Secondo anno.md",
+const THEORY_SOURCE_FILES = [
+  "Riassunto finale Diritto ed Economia.md",
   "Scienze Umane - Primo anno.md",
   "Scienze Umane - Secondo anno.md"
 ];
+const QUESTION_SOURCE_FILE = "Domande probabili.md";
+
+const PROVIDED_QUESTION_TOPICS = {
+  Diritto: [
+    ["il diritto e le norme giuridiche"],
+    ["il diritto e le norme giuridiche"],
+    ["le fonti del diritto"],
+    ["applicazione e interpretazione delle norme"],
+    ["i soggetti del diritto"],
+    ["i soggetti del diritto"],
+    ["le situazioni giuridiche"],
+    ["fatti e atti giuridici"],
+    ["il contratto"],
+    ["lo stato"],
+    ["le forme di stato"],
+    ["la costituzione italiana"],
+    ["democrazia diretta e indiretta"],
+    ["le forme di governo"],
+    ["i principi fondamentali della costituzione"],
+    ["prima parte della costituzione"],
+    ["seconda parte della costituzione"],
+    ["il parlamento"],
+    ["l'iter legis", "il referendum abrogativo"],
+    ["il governo"],
+    ["il presidente della repubblica"],
+    ["la magistratura", "il consiglio superiore della magistratura"],
+    ["la corte costituzionale"]
+  ],
+  Economia: [
+    ["i bisogni e i beni economici"],
+    ["la moneta"],
+    ["le banche"],
+    ["la banca centrale"],
+    ["l'inflazione"],
+    ["il ruolo dello stato nell'economia"],
+    ["i sistemi economici"]
+  ]
+};
 
 const state = {
   topics: [],
@@ -36,13 +73,16 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   bindEvents();
   try {
-    const files = await Promise.all(SOURCE_FILES.map(async (file) => {
-      const response = await fetch(encodeURI(file));
-      if (!response.ok) throw new Error(`Impossibile leggere ${file}`);
-      return { file, text: await response.text() };
-    }));
+    const [files, questionsMarkdown] = await Promise.all([
+      Promise.all(THEORY_SOURCE_FILES.map(async (file) => ({ file, text: await fetchMarkdown(file) }))),
+      fetchMarkdown(QUESTION_SOURCE_FILE)
+    ]);
     state.topics = files.flatMap(({ file, text }) => parseDocument(text, file));
-    state.cards = state.topics.flatMap(makeCardsForTopic);
+    const generatedScienceCards = state.topics
+      .filter((topic) => topic.subject === "Scienze Umane")
+      .flatMap(makeCardsForTopic);
+    const providedLawEconomicsCards = makeProvidedCards(parseProvidedQuestions(questionsMarkdown), state.topics);
+    state.cards = [...providedLawEconomicsCards, ...generatedScienceCards];
     updateStats();
     renderCategoryList();
     buildQueue();
@@ -52,6 +92,12 @@ async function init() {
   } catch (error) {
     showLoadingError(error);
   }
+}
+
+async function fetchMarkdown(file) {
+  const response = await fetch(encodeURI(file));
+  if (!response.ok) throw new Error(`Impossibile leggere ${file}`);
+  return response.text();
 }
 
 function bindEvents() {
@@ -117,6 +163,10 @@ function bindEvents() {
 }
 
 function parseDocument(markdown, fileName) {
+  if (fileName === "Riassunto finale Diritto ed Economia.md") {
+    return parseFinalLawEconomicsDocument(markdown, fileName);
+  }
+
   const subject = fileName.startsWith("Scienze") ? "Scienze Umane" : "Diritto ed Economia";
   const year = fileName.includes("Primo") ? "1" : "2";
   const lines = markdown.replace(/\r/g, "").split("\n");
@@ -151,6 +201,111 @@ function parseDocument(markdown, fileName) {
     if (current) current.lines.push(line);
   });
   return topics.map((topic) => ({ ...topic, markdown: topic.lines.join("\n").trim() }));
+}
+
+function parseFinalLawEconomicsDocument(markdown, fileName) {
+  const lines = markdown.replace(/\r/g, "").split("\n");
+  const topics = [];
+  let area = "Diritto";
+  let current = null;
+
+  lines.forEach((line) => {
+    const heading = line.match(/^\*\*([^*]+)\*\*\s*$/);
+    if (heading) {
+      const rawTitle = stripMarkdown(heading[1]);
+      if (normalizeTitle(rawTitle) === "economia") {
+        area = "Economia";
+        current = null;
+        return;
+      }
+      current = {
+        id: slug(`${fileName}-${area}-${rawTitle}`),
+        subject: "Diritto ed Economia",
+        year: inferLawEconomicsYear(area, rawTitle),
+        area,
+        title: sentenceCase(rawTitle),
+        category: `${area} · ${sentenceCase(rawTitle)}`,
+        lines: []
+      };
+      topics.push(current);
+      return;
+    }
+    if (current && !/^---+\s*$/.test(line)) current.lines.push(line);
+  });
+
+  return topics.map((topic) => ({ ...topic, markdown: topic.lines.join("\n").trim() }));
+}
+
+function inferLawEconomicsYear(area, title) {
+  const normalized = normalizeTitle(title);
+  if (area === "Economia") return normalized === "i bisogni e i beni economici" ? "1" : "2";
+  const firstYearTopics = new Set([
+    "il diritto e le norme giuridiche",
+    "le fonti del diritto",
+    "applicazione e interpretazione delle norme",
+    "i soggetti del diritto",
+    "le situazioni giuridiche",
+    "fatti e atti giuridici",
+    "il contratto"
+  ]);
+  return firstYearTopics.has(normalized) ? "1" : "2";
+}
+
+function parseProvidedQuestions(markdown) {
+  const questions = [];
+  let area = null;
+  let dirittoYear = "1";
+
+  markdown.replace(/\r/g, "").split("\n").forEach((line) => {
+    const section = line.match(/^###\s+(.+?)\s*$/);
+    if (section) {
+      const sectionName = stripMarkdown(section[1]);
+      area = ["Diritto", "Economia"].includes(sectionName) ? sectionName : null;
+      return;
+    }
+    if (/^---+\s*$/.test(line) && area === "Diritto") {
+      dirittoYear = "2";
+      return;
+    }
+    const numberedQuestion = line.match(/^\s*\d+[.)]\s+(.+?)\s*$/);
+    if (!area || !numberedQuestion) return;
+    const areaIndex = questions.filter((question) => question.area === area).length;
+    questions.push({
+      area,
+      areaIndex,
+      year: area === "Diritto" ? dirittoYear : areaIndex === 0 ? "1" : "2",
+      question: numberedQuestion[1]
+    });
+  });
+
+  return questions;
+}
+
+function makeProvidedCards(questions, topics) {
+  const lawEconomicsTopics = topics.filter((topic) => topic.subject === "Diritto ed Economia");
+  return questions.map((item) => {
+    const mappedTitles = PROVIDED_QUESTION_TOPICS[item.area]?.[item.areaIndex];
+    if (!mappedTitles) throw new Error(`Manca il collegamento per la domanda: ${item.question}`);
+    const linkedTopics = mappedTitles.map((title) => lawEconomicsTopics.find((topic) =>
+      topic.area === item.area && normalizeTitle(topic.title) === normalizeTitle(title)
+    ));
+    if (linkedTopics.some((topic) => !topic)) throw new Error(`Manca la teoria collegata alla domanda: ${item.question}`);
+    const primaryTopic = linkedTopics[0];
+    const answer = linkedTopics.length === 1
+      ? primaryTopic.markdown
+      : linkedTopics.map((topic) => `### ${topic.title}\n\n${topic.markdown}`).join("\n\n");
+    return {
+      id: `provided-${slug(`${item.area}-${item.question}`)}`,
+      topicId: primaryTopic.id,
+      topicIds: linkedTopics.map((topic) => topic.id),
+      subject: "Diritto ed Economia",
+      year: item.year,
+      area: item.area,
+      category: primaryTopic.category,
+      question: item.question,
+      answer
+    };
+  });
 }
 
 function makeCardsForTopic(topic) {
@@ -193,7 +348,7 @@ function makeCardsForTopic(topic) {
 }
 
 function createCard(topic, question, answer, type) {
-  return { id: `${topic.id}-${type}-${slug(question)}`, topicId: topic.id, subject: topic.subject, year: topic.year, area: topic.area, category: topic.category, question, answer };
+  return { id: `${topic.id}-${type}-${slug(question)}`, topicId: topic.id, topicIds: [topic.id], subject: topic.subject, year: topic.year, area: topic.area, category: topic.category, question, answer };
 }
 
 function getFilteredTopics() {
@@ -216,7 +371,7 @@ function getAvailableTopics() {
 function buildQueue(forceShuffle = false) {
   const topics = getFilteredTopics();
   const topicIds = new Set(topics.map((topic) => topic.id));
-  let cards = state.cards.filter((card) => topicIds.has(card.topicId));
+  let cards = state.cards.filter((card) => (card.topicIds || [card.topicId]).some((topicId) => topicIds.has(topicId)));
   if (forceShuffle || !state.queue.length) cards = shuffle(cards);
   else cards = state.queue.filter((card) => topicIds.has(card.topicId));
   state.queue = cards;
@@ -577,7 +732,8 @@ function setupCardSwipe() {
 function openCurrentTheory() {
   const card = state.queue[state.current];
   if (!card) return;
-  selectTheory(card.topicId);
+  const selectedTopicId = (card.topicIds || [card.topicId]).find((topicId) => state.selectedCategories.has(topicId));
+  selectTheory(selectedTopicId || card.topicId);
   switchView("theory");
   $("#theory-view").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -692,25 +848,8 @@ function inlineMarkdown(value) {
 function topicQuestion(title, parentTitle = "") {
   const plainTitle = stripMarkdown(title).replace(/^\d+\.\s*/, "").trim();
   const normalizedTitle = plainTitle.toLocaleLowerCase("it");
-  const normalizedParent = stripMarkdown(parentTitle).replace(/^\d+\.\s*/, "").trim().toLocaleLowerCase("it");
-  const contextualOverrides = {
-    "il parlamento: composizione e funzioni|composizione": "Com'è composto il Parlamento?",
-    "il presidente della repubblica|elezione": "Come viene eletto il Presidente della Repubblica?",
-    "la banca|funzioni principali": "Quali sono le principali funzioni della banca?"
-  };
-  if (contextualOverrides[`${normalizedParent}|${normalizedTitle}`]) return contextualOverrides[`${normalizedParent}|${normalizedTitle}`];
   const questionOverrides = {
-    "scarsità ed utilità": "Che cosa sono la scarsità e l'utilità?",
-    "i soggetti: capacità giuridica e capacità d'agire": "Chi sono i soggetti del diritto e che differenza c'è tra capacità giuridica e capacità d'agire?",
-    "lo stato: popolo, territorio e sovranità": "Quali sono i tre elementi costitutivi dello Stato?",
-    "il governo: formazione e funzioni": "Che cos'è il Governo e da quali organi è composto?",
-    "il parlamento: composizione e funzioni": "Che cos'è il Parlamento e com'è composto?",
-    "la moneta: definizione e funzioni": "Che cos'è la moneta e quali funzioni svolge?",
-    "la moneta bancaria, commerciale ed elettronica": "Quali sono le caratteristiche della moneta bancaria, commerciale ed elettronica?",
-    "l'inflazione: definizione, cause ed effetti": "Che cos'è l'inflazione?",
     "metodologia della ricerca — che cosa significa fare ricerca": "Che cosa significa fare ricerca scientifica?",
-    "la sovranità popolare - articolo 1": "Che cosa stabilisce l'articolo 1 sulla sovranità popolare?",
-    "la sovranità popolare — articolo 1": "Che cosa stabilisce l'articolo 1 sulla sovranità popolare?",
     "la psicologia del lavoro oggi": "Di che cosa si occupa oggi la psicologia del lavoro?",
     "comprendere il significato degli indici": "Come si interpreta il significato degli indici statistici?",
     "solo gli uomini parlano": "Perché si dice che solo gli esseri umani parlano?",
@@ -823,13 +962,18 @@ function upperFirst(value) { return value.charAt(0).toUpperCase() + value.slice(
 function isPersonName(value) { return new Set(["alfred adler", "carl gustav jung"]).has(value.toLocaleLowerCase("it")); }
 
 function stripMarkdown(value) { return value.replace(/[*_`]/g, "").trim(); }
+function normalizeTitle(value) { return stripMarkdown(value).toLocaleLowerCase("it").replace(/[’]/g, "'").trim(); }
+function sentenceCase(value) {
+  const lower = stripMarkdown(value).toLocaleLowerCase("it");
+  return upperFirst(lower);
+}
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
 function slug(value) { return stripMarkdown(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function shuffle(items) { return [...items].sort(() => Math.random() - .5); }
 
 function showLoadingError(error) {
   console.error(error);
-  $("#category-list").innerHTML = `<div class="theory-empty">Non riesco a caricare i file di teoria. Se stai aprendo index.html direttamente, avvia la pagina con un piccolo server locale oppure pubblicala su GitHub Pages.</div>`;
+  $("#category-list").innerHTML = `<div class="theory-empty">Non riesco a caricare i file Markdown. Se stai aprendo index.html direttamente, avvia la pagina con un piccolo server locale oppure pubblicala su GitHub Pages.</div>`;
   $("#total-cards").textContent = "0";
   $("#study-count").textContent = "0";
   $("#theory-count").textContent = "0";

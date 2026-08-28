@@ -4,14 +4,14 @@ Webapp statica per il ripasso di Diritto ed Economia e Scienze Umane — primo e
 
 ## Come usarla
 
-La pagina legge direttamente questi quattro file Markdown:
+La pagina legge direttamente questi file Markdown:
 
-- `Diritto ed Economia - Primo anno.md`
-- `Diritto ed Economia - Secondo anno.md`
+- `Riassunto finale Diritto ed Economia.md`
+- `Domande probabili.md`
 - `Scienze Umane - Primo anno.md`
 - `Scienze Umane - Secondo anno.md`
 
-Le domande vengono generate automaticamente dai titoli, dalle definizioni e dai primi concetti di ogni macrocategoria. Se modifichi la teoria nei file `.md`, la webapp si aggiorna al successivo caricamento.
+Per Diritto ed Economia, la teoria proviene dal riassunto finale e le carte usano esclusivamente le domande elencate in `Domande probabili.md`. Per Scienze Umane, le domande continuano a essere generate automaticamente dalla teoria. Se modifichi i file `.md`, la webapp si aggiorna al successivo caricamento.
 
 ## Pubblicazione su GitHub Pages
 
