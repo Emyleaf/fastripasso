@@ -553,6 +553,11 @@ select:focus, input[type="search"]:focus { border-color: var(--blue); box-shadow
     grid-template-columns: minmax(270px, 310px) minmax(0, 1fr);
     gap: clamp(48px, 5vw, 72px);
   }
+  .study-layout.is-exam-active { grid-template-columns: minmax(0, 1fr); }
+  .study-layout.is-exam-active .practice-area {
+    justify-self: center;
+    width: min(1080px, 100%);
+  }
   .topic-sidebar { position: sticky; top: 28px; padding: 22px 18px; }
   .category-list { max-height: calc(100vh - 290px); }
   .sidebar-help { max-width: 245px; }

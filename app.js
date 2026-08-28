@@ -480,11 +480,13 @@ function updateModeUI() {
     button.setAttribute("aria-pressed", String(active));
   });
   const isExam = state.studyMode === "exam";
+  const isExamActive = isExam && state.examActive;
   $("#exam-setup").hidden = !isExam || state.examActive;
   $("#free-heading").hidden = isExam;
   $("#free-filters").hidden = isExam;
   $("#free-topics").hidden = isExam;
   $(".practice-area").hidden = isExam && !state.examActive;
+  $(".study-layout").classList.toggle("is-exam-active", isExamActive);
   $("#partial-card").hidden = !isExam;
   $("#card-actions").classList.toggle("is-exam", isExam);
   $("#review-card").innerHTML = isExam
